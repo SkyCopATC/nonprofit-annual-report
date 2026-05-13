@@ -1619,8 +1619,35 @@ ${(r.volunteers||[]).length > 0 ? `<div class="page"><h2>Volunteers</h2><p>We ar
 async function buildReportDocx(){
   const r = activeReport(); if(!r) return;
   await ensureDocxLib();
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, PageBreak } = window.docx;
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, PageBreak, ImageRun } = window.docx;
   const accent = (r.cover.accentColor || '#2A7B6F').replace('#','');
+
+  // Helper: build an ImageRun paragraph from a data:URL (base64) image. Returns null on failure.
+  const imageFromDataUrl = (dataUrl, maxWidth) => {
+    try {
+      if (!dataUrl || !dataUrl.startsWith('data:')) return null;
+      const comma = dataUrl.indexOf(',');
+      if (comma < 0) return null;
+      const header = dataUrl.slice(5, comma); // "image/png;base64"
+      const mime = header.split(';')[0];      // "image/png"
+      const type = mime.includes('jpeg') || mime.includes('jpg') ? 'jpg'
+                 : mime.includes('gif')  ? 'gif'
+                 : mime.includes('bmp')  ? 'bmp'
+                 : 'png';
+      const b64 = dataUrl.slice(comma + 1);
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 200 },
+        children: [new ImageRun({ data: bytes, type, transformation: { width: maxWidth || 400, height: Math.round((maxWidth || 400) * 0.66) } })]
+      });
+    } catch (e) {
+      console.warn('Could not embed image in .docx:', e);
+      return null;
+    }
+  };
 
   const para = (text, opts) => new Paragraph({ children:[ new TextRun({ text: text||'', ...(opts||{}) }) ], spacing:{ after:120 } });
   const heading = (text) => new Paragraph({ heading: HeadingLevel.HEADING_1, children:[ new TextRun({ text, color:'1B3A5C', bold:true, size:36 }) ], spacing:{ before:240, after:160 } });
@@ -1636,6 +1663,11 @@ async function buildReportDocx(){
   children.push(new Paragraph({ children:[ new TextRun({ text: r.cover.orgName, bold:true, size:60, color:'1B3A5C' }) ], alignment: AlignmentType.CENTER, spacing:{ before:600, after:200 } }));
   children.push(new Paragraph({ children:[ new TextRun({ text: r.year + ' Annual Report', size:36, color:accent }) ], alignment: AlignmentType.CENTER, spacing:{ after:200 } }));
   if (r.cover.tagline) children.push(new Paragraph({ children:[ new TextRun({ text: r.cover.tagline, italics:true, size:24, color:'666666' }) ], alignment: AlignmentType.CENTER }));
+  // Embed uploaded hero image if present (only base64 data URLs — URL-only images aren't fetched here)
+  if (r.cover.heroImageData) {
+    const imgPara = imageFromDataUrl(r.cover.heroImageData, 450);
+    if (imgPara) children.push(imgPara);
+  }
   children.push(new Paragraph({ children:[ new PageBreak() ] }));
 
   // Letter
@@ -1930,8 +1962,4 @@ seedDemo();
 if (state.currentEmail && state.users[state.currentEmail]){
   routeAfterAuth();
 } else {
-  document.getElementById('screen-auth').classList.remove('hidden');
-}
-</script>
-</body>
-</html>
+  document.getElementById(
