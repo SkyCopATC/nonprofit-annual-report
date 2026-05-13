@@ -1030,9 +1030,11 @@ function renderCover(){
       <div class="field"><label>Organization name</label><input value="${escapeHtml(r.cover.orgName)}" onchange="updateSection('${r.id}','cover',{orgName:this.value})"/></div>
       <div class="field"><label>Report title</label><input value="${escapeHtml(r.cover.title)}" placeholder="${r.year} Annual Report" onchange="updateSection('${r.id}','cover',{title:this.value})"/></div>
       <div class="field"><label>Tagline (optional)</label><input value="${escapeHtml(r.cover.tagline)}" placeholder="One short phrase describing your mission or this year's theme" onchange="updateSection('${r.id}','cover',{tagline:this.value})"/></div>
-      <div class="field"><label>Hero image URL (optional)</label><input value="${escapeHtml(r.cover.heroImageUrl)}" placeholder="https://yourorg.org/photo.jpg" onchange="updateSection('${r.id}','cover',{heroImageUrl:this.value})"/></div>
-      <div class="field"><label>OR upload hero image (under 500KB recommended)</label><input type="file" accept="image/*" onchange="uploadHero('${r.id}', this)"/></div>
-      ${r.cover.heroImageData ? `<div style="margin:10px 0"><img src="${r.cover.heroImageData}" style="max-width:300px;border-radius:8px;border:1px solid var(--border)"/><div><button class="btn btn-ghost" onclick="updateSection('${r.id}','cover',{heroImageData:''}); renderCover()">Remove uploaded image</button></div></div>` : ''}
+      <div class="field"><label>Hero photo (optional)</label>
+        <input value="${escapeHtml(r.cover.heroImageUrl)}" placeholder="Paste image URL OR upload below" onchange="updateSection('${r.id}','cover',{heroImageUrl:this.value})"/>
+        <input type="file" accept="image/*" style="margin-top:8px;font-size:13px" onchange="uploadHero('${r.id}', this)"/>
+        ${r.cover.heroImageData ? `<div style="margin-top:10px"><img src="${r.cover.heroImageData}" style="max-width:300px;border-radius:8px;border:1px solid var(--border)"/><div><button class="btn btn-ghost" style="font-size:11px;margin-top:4px" onclick="updateSection('${r.id}','cover',{heroImageData:''}); renderCover()">Remove uploaded image</button></div></div>` : (r.cover.heroImageUrl ? `<div style="margin-top:10px"><img src="${escapeHtml(r.cover.heroImageUrl)}" style="max-width:300px;border-radius:8px;border:1px solid var(--border)" onerror="this.style.display='none'"/></div>` : '')}
+      </div>
       <div class="field"><label>Accent color (hex)</label><input value="${escapeHtml(r.cover.accentColor)}" placeholder="#2A7B6F" onchange="updateSection('${r.id}','cover',{accentColor:this.value})"/></div>
     </div>
   `;
@@ -1044,6 +1046,15 @@ function uploadHero(rid, input){
   reader.onload = e => { updateSection(rid, 'cover', { heroImageData: e.target.result }); renderCover(); };
   reader.readAsDataURL(file);
 }
+
+function uploadProgramPhoto(rid, i, input){
+  const file = input.files[0]; if(!file) return;
+  if (file.size > 500*1024 && !confirm('Image is larger than 500KB. Continue?')) return;
+  const reader = new FileReader();
+  reader.onload = e => { updateProgramField(rid, i, 'photoData', e.target.result); renderPrograms(); };
+  reader.readAsDataURL(file);
+}
+
 
 // ═════════════════════════════════════════════
 //  LETTER
@@ -1125,13 +1136,17 @@ function renderPrograms(){
         <div class="field"><label>Description (what it does)</label><textarea onchange="updateProgramField('${r.id}',${i},'description',this.value)">${escapeHtml(p.description)}</textarea></div>
         <div class="field"><label>Impact &amp; outcomes (specific numbers)</label><textarea onchange="updateProgramField('${r.id}',${i},'impact',this.value)">${escapeHtml(p.impact)}</textarea></div>
         <div class="field"><label>Stories &amp; quotes</label><textarea placeholder='"Quote from a participant..." — Name, Role' onchange="updateProgramField('${r.id}',${i},'stories',this.value)">${escapeHtml(p.stories||'')}</textarea></div>
-        <div class="field"><label>Photo URL (optional)</label><input value="${escapeHtml(p.photoUrl||'')}" onchange="updateProgramField('${r.id}',${i},'photoUrl',this.value)"/></div>
+        <div class="field"><label>Photo (optional)</label>
+          <input value="${escapeHtml(p.photoUrl||'')}" placeholder="Paste image URL OR upload below" onchange="updateProgramField('${r.id}',${i},'photoUrl',this.value)"/>
+          <input type="file" accept="image/*" style="margin-top:8px;font-size:13px" onchange="uploadProgramPhoto('${r.id}',${i}, this)"/>
+          ${p.photoData ? `<div style="margin-top:10px"><img src="${p.photoData}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)"/><div><button class="btn btn-ghost" style="font-size:11px;margin-top:4px" onclick="updateProgramField('${r.id}',${i},'photoData',''); renderPrograms()">Remove uploaded image</button></div></div>` : (p.photoUrl ? `<div style="margin-top:10px"><img src="${escapeHtml(p.photoUrl)}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)" onerror="this.style.display='none'"/></div>` : '')}
+        </div>
         <button class="btn" style="background:var(--red);color:#fff" onclick="if(confirm('Delete this program?')){removeProgram('${r.id}',${i});}">🗑 Delete program</button>
       </div>
     `).join('')}
   `;
 }
-function addProgram(rid){ const r=getReport(rid); if(!r) return; r.programs = r.programs || []; r.programs.push({id:newId('p-'),name:'',description:'',impact:'',stories:'',photoUrl:''}); save(); renderPrograms(); }
+function addProgram(rid){ const r=getReport(rid); if(!r) return; r.programs = r.programs || []; r.programs.push({id:newId('p-'),name:'',description:'',impact:'',stories:'',photoUrl:'',photoData:''}); save(); renderPrograms(); }
 function updateProgramField(rid,i,k,v){ const r=getReport(rid); if(!r) return; r.programs[i][k]=v; save(); }
 function removeProgram(rid,i){ const r=getReport(rid); if(!r) return; r.programs.splice(i,1); save(); renderPrograms(); }
 
